@@ -17,10 +17,10 @@ const BASE_FILENAME = process.env.SOURCE_FILENAME || 'main-es2015';
 const BUILD_HASH = process.env.SOURCE_HASH || '1234567890abcde12345';
 
 // line from minified file -- likely won't change
-const LINE = process.env.SOURCE_LINE || 1;
+const LINE = parseInt(process.env.SOURCE_LINE, 10) || 1;
 
 // column from the minified file
-const COLUMN = process.env.SOURCE_COLUMN || 1;
+const COLUMN = parseInt(process.env.SOURCE_COLUMN, 10) || 1;
 
 // -----------------------------------------------
 
@@ -30,17 +30,31 @@ const sourceMap = require('source-map');
 
 const generatedFile = path.join(
   `${PROJECT_LOCATION}/dist/${APP_NAME}`,
-  `${BASE_FILENAME}.${BUILD_HASH}.js.map`,
+  `${BASE_FILENAME}.${BUILD_HASH}.js.map`
 );
 
-const rawSourceMap = fs.readFileSync(generatedFile).toString();
-new sourceMap.SourceMapConsumer(rawSourceMap).then(function(smc) {
-  const position = smc.originalPositionFor({
-    line: LINE,
-    column: COLUMN,
-  });
+console.log(`
+Looking up ${LINE}:${COLUMN} in file ${generatedFile}
+`);
 
-  // should see some output like:
-  // { source: 'original.js', line: 57, column: 9, name: 'myfunc' }
-  console.log(position);
+fs.readFile(generatedFile, (err, rawSourceMap) => {
+  if (err) {
+    console.error('error reading file: ' + err);
+  } else {
+    processSourceMap(rawSourceMap.toString(), { line: LINE, column: COLUMN });
+  }
 });
+
+function processSourceMap(sourceMapData, positionObj) {
+  new sourceMap.SourceMapConsumer(sourceMapData)
+    .then(function(smc) {
+      const position = smc.originalPositionFor(positionObj);
+
+      // should see some output like:
+      // { source: 'original.js', line: 57, column: 9, name: 'myfunc' }
+      console.log(position);
+    })
+    .catch(err => {
+      console.error('error processing sourcemap: ' + err);
+    });
+}
